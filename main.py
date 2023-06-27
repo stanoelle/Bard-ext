@@ -12,8 +12,6 @@ bot = telebot.TeleBot("6179975944:AAEgrJwmzF0urBQOMYOVhGyosAFGoGYTc14")
 auth_cookie = os.getenv("BING_AUTH_COOKIE")
 
 # Check if environment variables are set
-if not TELEGRAM_TOKEN:
-    raise ValueError("Telegram bot token not set")
 if not POE_COOKIE:
     raise ValueError("POE.com cookie not set")
 
