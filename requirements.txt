@@ -1,5 +1,4 @@
 asyncio
-concurrent.futures
 httpx==0.21.0
 telebot
 poe_api>=0.4.6
