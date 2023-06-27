@@ -6,7 +6,7 @@ from pymongo import MongoClient
 import io
 from flask import Flask, request
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 from bardapi import Bard
 import logging
