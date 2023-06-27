@@ -78,7 +78,7 @@ def how_to_use_callback(update, context):
         [InlineKeyboardButton("Back", callback_data="back")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(text='How to Use the me:\n\n1. To ask a question in a group chat, start your message with `/ask` followed by your question.\n\n2. To use Chatgpt 3.5, type `/gpt` followed by your prompt.\n\n3. To use BardAi, simply send me a direct message with your question.\n\n4. If the bot seems blocked, try sending `/start` again
+    query.edit_message_text(text='How to Use the me:\n\n1. To ask a question in a group chat, start your message with `/ask` followed by your question.\n\n2. To use Chatgpt 3.5, type `/gpt` followed by your prompt.\n\n3. To use BardAi, simply send me a direct message with your question.\n\n4. If the bot seems blocked, try sending `/start` again'
 def back_callback(update, context):
     query = update.callback_query
     query.answer()
