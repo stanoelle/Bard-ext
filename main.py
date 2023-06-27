@@ -3,7 +3,6 @@ import random
 import asyncio
 import concurrent.futures
 import telebot
-from telebot.types import Message, Update, CallbackContext
 POE_COOKIE = "m87UlQ4NDefo_CAwj-9kCQ%3D%3D"
 ALLOWED_USERS = os.getenv("ALLOWED_USERS")
 ALLOWED_CHATS = os.getenv("ALLOWED_CHATS")
