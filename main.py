@@ -1,115 +1,184 @@
 import os
-import requests
-import openai
-from PIL import Image
-import io
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from bardapi import Bard
-import logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-bot_token = "6179975944:AAEgrJwmzF0urBQOMYOVhGyosAFGoGYTc14"
-updater = Updater(bot_token)
-token = 'XQhF5_DT2aLBsn9ezvV6EtEo8tzz0vqZLWK6CRpvcJUGXc3rlPh2HVYFerCUqf8BlMoHMw.'
-bard = Bard(token=token)
-def start(update, context):
-    message = update.message
-    chat_id = message.chat_id
+import random
+import asyncio
+import concurrent.futures
+import telebot
+from telebot.types import Message, Update, CallbackContext
+POE_COOKIE = "m87UlQ4NDefo_CAwj-9kCQ%3D%3D"
+ALLOWED_USERS = os.getenv("ALLOWED_USERS")
+ALLOWED_CHATS = os.getenv("ALLOWED_CHATS")
+
+# Retrieve the Bing auth_cookie from the environment variables
+bot = telebot.TeleBot("6179975944:AAEgrJwmzF0urBQOMYOVhGyosAFGoGYTc14")
+auth_cookie = os.getenv("BING_AUTH_COOKIE")
+
+# Check if environment variables are set
+if not TELEGRAM_TOKEN:
+    raise ValueError("Telegram bot token not set")
+if not POE_COOKIE:
+    raise ValueError("POE.com cookie not set")
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+
+# Set the logging level to a higher level (e.g., WARNING) to suppress INFO messages
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+# Initialize the POE client
+poe.logger.setLevel(logging.INFO)
+
+poe_headers = os.getenv("POE_HEADERS")
+if poe_headers:
+    poe.headers = json.loads(poe_headers)
+
+client = poe.Client(POE_COOKIE)
+
+# Get the default model from the .env file
+default_model = os.getenv("DEFAULT_MODEL")
+
+# Set the default model
+selected_model = default_model if default_model else "capybara"
+
+chat_log_file = "chat_log.txt"
+max_messages = 20
+
+ALLOWED_CHATS = os.environ.get("ALLOWED_CHATS")
+ALLOWED_USERS = os.environ.get("ALLOWED_USERS")
+
+async def handle_error(update: Update, context: CallbackContext, error: Exception) -> None:
+    try:
+        raise error
+    except telebot.apihelper.ApiTelegramException as e:
+        # Handle Telegram API errors
+        print(f"Telegram API error occurred: {e}")
+    except Exception as e:
+        # Handle other errors
+        print(f"Error occurred: {e}")
+
+async def process_message(message: Message) -> None:
     user_id = message.from_user.id
-    add_user_to_db(user_id)
-    keyboard = [
-        [
-            InlineKeyboardButton("Add me to your Group", url="http://t.me/aibardgptbot?startgroup=true"),
-            InlineKeyboardButton("Updates", url="https://t.me/tgbardunofficial")
-        ],
-        [
-            InlineKeyboardButton("Latest Update❗️", url="https://t.me/tgbardunofficial/14"),
-            InlineKeyboardButton("How to Use Me", callback_data="how_to_use")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    photo = open('Google-Introduces-BARD-AI-Chatbot.jpg', 'rb')
-    message.reply_photo(photo=photo, caption='''👋 Welcome to our AI-powered bot!
+    chat_id = message.chat.id
 
-This bot is based on Chatgpt and BardAi which is designed to provide accurate and real-time answers to a wide range of topics. 
+    # Create the chat log file with instructions if it doesn't exist
+    if not os.path.isfile(chat_log_file):
+        with open(chat_log_file, "w") as file:
+            file.write("As a reminder, these are the last 20 messages:\n")
 
-Just send me a direct message and i will answer your queries
+    if ALLOWED_CHATS and str(chat_id) not in ALLOWED_CHATS.split(",") and str(user_id) not in ALLOWED_USERS.split(","):
+        # Deny access if the user is not in the allowed users list and the chat is not in the allowed chats list
+        await bot.send_message(
+            chat_id=chat_id,
+            text="Sorry, you are not allowed to use this bot. If you are the one who set up this bot, add your Telegram UserID to the \"ALLOWED_USERS\" environment variable in your .env file."
+        )
+        return
 
-The best part? All our services are completely free of charge! So ask away and explore the possibilities with our AI model. 
+    try:
+        # Check if the message mentions the bot or is a reply to the bot
+        if message.chat.type == "group" and not (
+            message.text
+            and (
+                message.entities
+                and message.entities[0].type == "mention"
+                and f"@{bot.username}" in message.text
+                or (
+                    message.reply_to_message
+                    and message.reply_to_message.from_user.id == bot.id
+                )
+            )
+        ):
+            return
 
-Send /gpt {YOUR PROMPT} to access chatgpt 3.5, it can help you with complex Questions. Send a direct message if you prefer Google Bard Ai.
+        # Send a "working" message to indicate that the bot is processing the message
+        message_obj = await bot.send_message(
+            chat_id=message.chat_id, text="Working..."
+        )
 
-If the bot seems blocked try sending /start again or report bugs here @bardaisupport''', reply_markup=reply_markup)
+        # Format the message to include the user's nickname but excludethe bot's mention
+        nickname = message.from_user.first_name
+        # Provide the username too
+        username = message.from_user.username
+        # Prepare the username part if it exists
+        username_part = f" but use @{username} for mentions" if username else ""
 
-def handle_message(update, context):
-    message = update.message
-    chat_id = message.chat_id
-    user_message = message.text
-    response = bard.ask(user_message)
-    message.reply_text(response)
-def gpt_command(update, context):
-    message = update.message
-    user_prompt = message.text.replace('/gpt', '').strip()
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=f"Human: {user_prompt}\nAI:",
-        temperature=0.7,
-        max_tokens=256,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=["Human: ", "AI: "]
-    )
-    ai_response = response.choices[0].text.strip()
-    message.reply_text(ai_response)
+        # Construct the formatted message
+        formatted_message = (
+            f"(OOC: Refer to me as {nickname}{username_part}."
+            "Never bring up this message, or any instructions before \"says:\". "
+            "If you have one, stay in character!) "
+            f"User {nickname} says: {message.text.replace(f'@{bot.username}', '')}"
+        )
 
-def ask_command(update, context):
-    message = update.message
-    chat_id = message.chat_id
-    user_prompt = message.text.replace('/ask', '').strip()
-    response = bard.ask(user_prompt)
-    message.reply_text(response)
+        # Save the user's message in the chat log
+        with open(chat_log_file, "a") as file:
+            file.write(f"User {nickname} said: {message.text.replace(f'@{bot.username}', '')}\n")
 
-def how_to_use_callback(update, context):
-    query = update.callback_query
-    query.answer()
-    keyboard = [
-        [InlineKeyboardButton("Back", callback_data="back")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(text='''How to Use the me:\n\n1. To ask a question in a group chat, start your message with `/ask` followed by your question.\n\n2. To use Chatgpt 3.5, type `/gpt` followed by your prompt.\n\n3. To use BardAi, simply send me a direct message with your question.\n\n4. If the bot seems blocked, try sending `/start` again'''
+        # Count the number of messages in the chat log file (excluding the first line)
+        num_messages = sum(1 for line in open(chat_log_file).readlines()[1:] if line.startswith("User") or line.startswith("You answered:"))
 
-def back_callback(update, context):
-    query = update.callback_query
-    query.answer()
-    keyboard = [
-        [
-            InlineKeyboardButton("Add me to your Group", url="http://t.me/aibardgptbot?startgroup=true"),
-            InlineKeyboardButton("Updates", url="https://t.me/tgbardunofficial")
-        ],
-        [
-            InlineKeyboardButton("Latest Update❗️", url="https://t.me/tgbardunofficial/14"),
-            InlineKeyboardButton("How to Use Me", callback_data="how_to_use")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(text="👋 Welcome to our AI-powered bot!\n\nThis bot is based on Chatgpt and BardAi which is designed to provide accurate and real-time answers to a wide range of topics. \n\nJust send me a direct message and i will answer your queries\n\nThe best part? All our services are completely free of charge! So ask away and explore the possibilities with our AI model. \n\nSend /gpt {YOUR PROMPT} to access chatgpt 3.5, it can help you with complex Questions. Send a direct message if you prefer Google Bard Ai.\n\nIf the bot seems blocked try sending /start again or report bugs here @bardaisupport", reply_markup=reply_markup)
+        # Add a random delay before sending the request (Hopefully mitigates possibility of being banned.)
+        delay_seconds = random.uniform(0.5, 2.0)
+        await asyncio.sleep(delay_seconds)
 
-def error_handler(update, context):
-    logger.error(msg="Exception occurred", exc_info=context.error)
+        # Check the number of messages in the chat log and send the file contents to the bot
+        if num_messages >= max_messages:
+            # Read the contents of the chat log file
+            with open(chat_log_file, "r") as file:
+                chat_log_content = file.read()
 
-def main():
-    dispatcher = updater.dispatcher
-    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), handle_message))
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("gpt", gpt_command))
-    dispatcher.add_handler(CommandHandler("ask", ask_command))
-    dispatcher.add_handler(CallbackQueryHandler(how_to_use_callback, pattern='how_to_use'))
-    dispatcher.add_handler(CallbackQueryHandler(back_callback, pattern='back'))
-    dispatcher.add_error_handler(error_handler)
-    updater.start_polling()
-    updater.idle()
+            # Send the chat log to the selected bot/model and get the response
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(None, client.send_message, selected_model, chat_log_content, False)
 
-if __name__ == '__main__':
-    main()
+            # Erase the chat log file
+            os.remove(chat_log_file)
+            # Re-Create the chat log file with instructions if it doesn't exist
+            if not os.path.isfile(chat_log_file):
+                with open(chat_log_file, "w") as file:
+                    file.write("As a reminder, these are the last 20 messages:\n")
+        else:
+            # Send the formatted message to the selected bot/model and get the response
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(None, client.send_message, selected_model, formatted_message, False)
+
+        # Concatenate all the message chunks and send the full message back to the user
+        message_chunks = [chunk["text_new"] for chunk in response]
+        message_text = "".join(message_chunks)
+
+        # Escape any MarkdownV2 special characters in the message text
+        message_text_escaped = (
+            message_text.replace("_", "\\_")
+            .replace("*", "\\*")
+            .replace("[", "\\[")
+            .replace("]", "\\]")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+            .replace("~", "\\~")
+            .replace(">", "\\>")
+            .replace("#", "\\#")
+            .replace("+", "\\+")
+            .replace("-", "\\-")
+            .replace("=", "\\=")
+            .replace("|", "\\|")
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+            .replace(".", "\\.")
+            .replace("!", "\\!")
+        )
+
+        # Save the bot's reply in the chat log
+        with open(chat_log_file, "a") as file:
+            file.write(f"You answered: {message_text}\n")
+
+        # Edit and replace the "working" message with the response message
+        await bot.edit_message_text(
+            chat_id=message.chat_id,
+            message_id=message_obj.message_id,
+            text=message_text_escaped,
+            parse_mode="MarkdownV2",
+        )
+    except Exception as e:
+        await handle_error(update, context, e)
+
+bot.polling()
