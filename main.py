@@ -7,7 +7,7 @@ import io
 from flask import Flask, request
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-
+import telegram
 from bardapi import Bard
 import logging
 
