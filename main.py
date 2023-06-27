@@ -48,7 +48,15 @@ max_messages = 20
 ALLOWED_CHATS = os.environ.get("ALLOWED_CHATS")
 ALLOWED_USERS = os.environ.get("ALLOWED_USERS")
 
-
+async def handle_error(update: Update, context: CallbackContext, error: Exception) -> None:
+    try:
+        raise error
+    except telebot.apihelper.ApiTelegramException as e:
+        # Handle Telegram API errors
+        print(f"Telegram API error occurred: {e}")
+    except Exception as e:
+        # Handle other errors
+        print(f"Error occurred: {e}")
 async def process_message(message: Message) -> None:
     user_id = message.from_user.id
     chat_id = message.chat.id
