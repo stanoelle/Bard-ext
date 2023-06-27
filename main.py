@@ -141,7 +141,7 @@ def generate_answer(update, context):
 def ask_command_handler(update, context):
     generate_answer(update.effective_message, context)
 
-updater = Updater(token=bot_token, use_context=True)
+updater = Updater(bot_token, use_context=True)
 dispatcher = updater.dispatcher
 
 start_handler = CommandHandler('start', send_welcome)
